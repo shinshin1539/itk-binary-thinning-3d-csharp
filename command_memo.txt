@@ -1,0 +1,7 @@
+dotnet run --project ItkThinning3D.App -- thin 41 41 41 torus.raw torus_thin.raw
+(python tools/itk_thin_raw.py torus.raw 41 41 41 torus_itk.raw)
+dotnet run --project ItkThinning3D.App -- diff 41 41 41 torus_thin.raw torus_itk.raw
+
+dotnet run --project ItkThinning3D.App -- thin 101 101 101 torus101.raw torus101_thin.raw --profile
+dotnet run --project ItkThinning3D.App -- thin 151 151 151 torus151.raw torus151_thin.raw --profile
+

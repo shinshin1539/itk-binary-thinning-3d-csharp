@@ -42,4 +42,28 @@ public static class Neighborhood
             n27[k] = v;
         }
     }
+    public static void Get27FastInterior(byte[] vol, int d, int h, int w, int z, int y, int x, byte[] n27)
+    {
+        // 前提：1 <= x <= w-2, 1 <= y <= h-2, 1 <= z <= d-2
+        int hw = h * w;
+        int baseIdx = (z * h + y) * w + x;
+
+        // z-1 plane
+        int p = baseIdx - hw;
+        n27[0]  = vol[p - w - 1]; n27[1]  = vol[p - w]; n27[2]  = vol[p - w + 1];
+        n27[3]  = vol[p - 1];     n27[4]  = vol[p];     n27[5]  = vol[p + 1];
+        n27[6]  = vol[p + w - 1]; n27[7]  = vol[p + w]; n27[8]  = vol[p + w + 1];
+
+        // z plane
+        p = baseIdx;
+        n27[9]  = vol[p - w - 1]; n27[10] = vol[p - w]; n27[11] = vol[p - w + 1];
+        n27[12] = vol[p - 1];     n27[13] = vol[p];     n27[14] = vol[p + 1];
+        n27[15] = vol[p + w - 1]; n27[16] = vol[p + w]; n27[17] = vol[p + w + 1];
+
+        // z+1 plane
+        p = baseIdx + hw;
+        n27[18] = vol[p - w - 1]; n27[19] = vol[p - w]; n27[20] = vol[p - w + 1];
+        n27[21] = vol[p - 1];     n27[22] = vol[p];     n27[23] = vol[p + 1];
+        n27[24] = vol[p + w - 1]; n27[25] = vol[p + w]; n27[26] = vol[p + w + 1];
+    }
 }

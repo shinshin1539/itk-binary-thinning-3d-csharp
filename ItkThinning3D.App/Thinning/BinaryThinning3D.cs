@@ -6,6 +6,20 @@ namespace ItkThinning3D.App.Thinning;
 
 public static class BinaryThinning3D
 {
+    private static bool IsBorderPointLiteIdx(byte[] vol, int d, int h, int w, int idx, int z, int y, int x, ThinningDir dir)
+    {
+        int hw = h * w;
+        return dir switch
+        {
+            ThinningDir.Xm => (x == 0)     ? true : vol[idx - 1] == 0,
+            ThinningDir.Xp => (x == w - 1) ? true : vol[idx + 1] == 0,
+            ThinningDir.Ym => (y == 0)     ? true : vol[idx - w] == 0,
+            ThinningDir.Yp => (y == h - 1) ? true : vol[idx + w] == 0,
+            ThinningDir.Zm => (z == 0)     ? true : vol[idx - hw] == 0,
+            ThinningDir.Zp => (z == d - 1) ? true : vol[idx + hw] == 0,
+            _ => false
+        };
+    }
     private static void IdxToZYX(int idx, int hw, int w, out int z, out int y, out int x)
     {
         z = idx / hw;
@@ -71,11 +85,12 @@ public static class BinaryThinning3D
                     if (vol[idx] == 0) continue;
 
                     IdxToZYX(idx, hw, w, out int z, out int y, out int x);
+                    if (!IsBorderPointLiteIdx(vol, d, h, w, idx, z, y, x, dir)) continue;
+                    bool interior = (x > 0 && x < w - 1 && y > 0 && y < h - 1 && z > 0 && z < d - 1);
+                    if (interior) Neighborhood.Get27FastInterior(vol, d, h, w, z, y, x, n27);
+                    else Neighborhood.Get27(vol, d, h, w, z, y, x, n27);
 
-                    if (!Border.IsBorderPoint(vol, d, h, w, z, y, x, dir)) continue;
                     if (stats != null) stats.CandidateChecks++;
-
-                    Neighborhood.Get27(vol, d, h, w, z, y, x, n27);
 
                     int numberOfNeighbors = -1;
                     for (int i = 0; i < 27; i++) if (n27[i] == 1) numberOfNeighbors++;
@@ -108,7 +123,9 @@ public static class BinaryThinning3D
 
                     vol[idx] = 0;
 
-                    Neighborhood.Get27(vol, d, h, w, z, y, x, n27);
+                    bool interior = (x > 0 && x < w - 1 && y > 0 && y < h - 1 && z > 0 && z < d - 1);
+                    if (interior) Neighborhood.Get27FastInterior(vol, d, h, w, z, y, x, n27);
+                    else Neighborhood.Get27(vol, d, h, w, z, y, x, n27);
                     if (!ItkLee94.IsSimplePoint(n27))
                     {
                         vol[idx] = 1;
