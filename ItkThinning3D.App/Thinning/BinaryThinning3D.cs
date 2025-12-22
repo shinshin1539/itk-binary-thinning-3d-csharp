@@ -128,7 +128,7 @@ public static class BinaryThinning3D
                     bool interior = (x > 0 && x < w - 1 && y > 0 && y < h - 1 && z > 0 && z < d - 1);
                     if (interior) Neighborhood.Get27FastInterior(vol, d, h, w, z, y, x, n27);
                     else Neighborhood.Get27(vol, d, h, w, z, y, x, n27);
-                    if (!ItkLee94.IsSimplePoint(n27))
+                    if (!ItkLee94.IsSimplePoint(n27, cubeScratch))
                     {
                         vol[idx] = 1;
                         if (stats != null) stats.DeletedReverted++;
