@@ -1,19 +1,37 @@
 using System;
+using System.Diagnostics;
 using System.Collections.Generic;
 
 namespace ItkThinning3D.App.Thinning;
 
 public static class BinaryThinning3D
 {
+    private static void IdxToZYX(int idx, int hw, int w, out int z, out int y, out int x)
+    {
+        z = idx / hw;
+        int rem = idx - z * hw;
+        y = rem / w;
+        x = rem - y * w;
+    }
+    // 既存APIは維持：Stats不要ならこれを呼べばOK
     public static byte[] Thin(byte[] input, int d, int h, int w)
+        => ThinWithStats(input, d, h, w, stats: null);
+
+    // 追加API：Statsが欲しい時はこちら
+    public static byte[] ThinWithStats(byte[] input, int d, int h, int w, ThinningStats? stats)
     {
         if (input is null) throw new ArgumentNullException(nameof(input));
         if (input.Length != d * h * w) throw new ArgumentException("size mismatch");
 
+        var swTotal = Stopwatch.StartNew();
+
         // binary normalize
         var vol = (byte[])input.Clone();
         for (int i = 0; i < vol.Length; i++) vol[i] = (byte)(vol[i] != 0 ? 1 : 0);
-
+        // foreground index list
+        var foreground = new List<int>(Math.Max(1024, VolumeIO.CountOnes(vol)));
+        for (int i = 0; i < vol.Length; i++)
+            if (vol[i] != 0) foreground.Add(i);
         var eulerLut = ItkLee94.CreateEulerLut();
         var candidates = new List<int>(1024);
         var n27 = new byte[27];
@@ -22,54 +40,61 @@ public static class BinaryThinning3D
 
         ThinningDir BorderDir(int borderType) => borderType switch
         {
-            1 => ThinningDir.Ym, // N (0,-1,0)
-            2 => ThinningDir.Yp, // S (0,+1,0)
-            3 => ThinningDir.Xp, // E (+1,0,0)
-            4 => ThinningDir.Xm, // W (-1,0,0)
-            5 => ThinningDir.Zp, // U (0,0,+1)
-            6 => ThinningDir.Zm, // B (0,0,-1)
+            1 => ThinningDir.Ym,
+            2 => ThinningDir.Yp,
+            3 => ThinningDir.Xp,
+            4 => ThinningDir.Xm,
+            5 => ThinningDir.Zp,
+            6 => ThinningDir.Zm,
             _ => throw new ArgumentOutOfRangeException(nameof(borderType)),
         };
 
         int unchangedBorders = 0;
         while (unchangedBorders < 6)
         {
+            if (stats != null) stats.OuterLoops++;
             unchangedBorders = 0;
 
             for (int currentBorder = 1; currentBorder <= 6; currentBorder++)
             {
+                if (stats != null) stats.BorderPasses++;
+
                 candidates.Clear();
+                if (candidates.Capacity < foreground.Count) candidates.Capacity = foreground.Count;
                 var dir = BorderDir(currentBorder);
 
-                // 1) parallel候補収集（ただしここでは消さない）
-                for (int z = 0; z < d; z++)
-                for (int y = 0; y < h; y++)
-                for (int x = 0; x < w; x++)
+                // ---- collect candidates ----
+                var swCollect = Stopwatch.StartNew();
+
+                foreach (int idx in foreground)
                 {
-                    int idx = Neighborhood.Idx(z, y, x, h, w);
                     if (vol[idx] == 0) continue;
 
-                    // border点でなければスキップ
+                    IdxToZYX(idx, hw, w, out int z, out int y, out int x);
+
                     if (!Border.IsBorderPoint(vol, d, h, w, z, y, x, dir)) continue;
+                    if (stats != null) stats.CandidateChecks++;
 
                     Neighborhood.Get27(vol, d, h, w, z, y, x, n27);
 
-                    // 端点（1近傍）は消さない
                     int numberOfNeighbors = -1;
-                    for (int i = 0; i < 27; i++)
-                        if (n27[i] == 1) numberOfNeighbors++;
+                    for (int i = 0; i < 27; i++) if (n27[i] == 1) numberOfNeighbors++;
                     if (numberOfNeighbors == 1) continue;
 
-                    // Euler invariant
                     if (!ItkLee94.IsEulerInvariant(n27, eulerLut)) continue;
-
-                    // Simple point
                     if (!ItkLee94.IsSimplePoint(n27)) continue;
 
                     candidates.Add(idx);
+                    if (stats != null) stats.CandidatesAdded++;
                 }
 
-                // 2) sequential re-check（消してから再判定→ダメなら戻す）
+
+                swCollect.Stop();
+                if (stats != null) stats.MsCollect += swCollect.ElapsedMilliseconds;
+
+                // ---- sequential re-check ----
+                var swSeq = Stopwatch.StartNew();
+
                 bool noChange = true;
 
                 foreach (int idx in candidates)
@@ -86,17 +111,25 @@ public static class BinaryThinning3D
                     Neighborhood.Get27(vol, d, h, w, z, y, x, n27);
                     if (!ItkLee94.IsSimplePoint(n27))
                     {
-                        vol[idx] = 1; // つながり壊すので戻す
+                        vol[idx] = 1;
+                        if (stats != null) stats.DeletedReverted++;
                     }
                     else
                     {
                         noChange = false;
+                        if (stats != null) stats.DeletedAccepted++;
                     }
                 }
+
+                swSeq.Stop();
+                if (stats != null) stats.MsSequential += swSeq.ElapsedMilliseconds;
 
                 if (noChange) unchangedBorders++;
             }
         }
+
+        swTotal.Stop();
+        if (stats != null) stats.MsTotal = swTotal.ElapsedMilliseconds;
 
         return vol;
     }

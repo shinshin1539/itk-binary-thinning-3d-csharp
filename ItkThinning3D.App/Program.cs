@@ -90,12 +90,29 @@ if (cmd == "thin")
     int D = Parse(args[1]), H = Parse(args[2]), W = Parse(args[3]);
     string inPath = args[4];
     string outPath = args[5];
+    bool profile = (args.Length >= 7 && args[6] == "--profile");
 
     var vol = VolumeIO.ReadRawU8(inPath, D, H, W);
-    var outVol = BinaryThinning3D.Thin(vol, D, H, W);
+
+    ThinningStats? st = profile ? new ThinningStats() : null;
+    var outVol = BinaryThinning3D.ThinWithStats(vol, D, H, W, st);
 
     VolumeIO.WriteRawU8(outPath, outVol, D, H, W);
     Console.WriteLine($"Thinned {inPath} -> {outPath} ones {VolumeIO.CountOnes(vol)} -> {VolumeIO.CountOnes(outVol)}");
+
+    if (st != null)
+    {
+        Console.WriteLine("---- profile ----");
+        Console.WriteLine($"total(ms)       : {st.MsTotal}");
+        Console.WriteLine($"collect(ms)     : {st.MsCollect}");
+        Console.WriteLine($"sequential(ms)  : {st.MsSequential}");
+        Console.WriteLine($"outer loops     : {st.OuterLoops}");
+        Console.WriteLine($"border passes   : {st.BorderPasses}");
+        Console.WriteLine($"candidate checks: {st.CandidateChecks}");
+        Console.WriteLine($"candidates added: {st.CandidatesAdded}");
+        Console.WriteLine($"deleted accepted: {st.DeletedAccepted}");
+        Console.WriteLine($"deleted reverted: {st.DeletedReverted}");
+    }
     return;
 }
 
