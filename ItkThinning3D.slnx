@@ -1,0 +1,4 @@
+<Solution>
+  <Project Path="ItkThinning3D.App/ItkThinning3D.App.csproj" />
+  <Project Path="ItkThinning3D.Tests/ItkThinning3D.Tests.csproj" />
+</Solution>
