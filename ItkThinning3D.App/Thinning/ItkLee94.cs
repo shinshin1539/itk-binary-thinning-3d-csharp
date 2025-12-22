@@ -277,6 +277,38 @@ public static class ItkLee94
 
         return true;
     }
+    public static bool IsSimplePoint(byte[] neighbors, int[] cubeScratch)
+    {
+        // cubeScratch.Length == 26 が前提
+        for (int i = 0; i < 13; i++) cubeScratch[i] = neighbors[i];
+        for (int i = 14; i < 27; i++) cubeScratch[i - 1] = neighbors[i];
+
+        int label = 2;
+
+        for (int i = 0; i < 26; i++)
+        {
+            if (cubeScratch[i] != 1) continue;
+
+            int startOctant = i switch
+            {
+                0 or 1 or 3 or 4 or 9 or 10 or 12 => 1,
+                2 or 5 or 11 or 13 => 2,
+                6 or 7 or 14 or 15 => 3,
+                8 or 16 => 4,
+                17 or 18 or 20 or 21 => 5,
+                19 or 22 => 6,
+                23 or 24 => 7,
+                25 => 8,
+                _ => throw new ArgumentOutOfRangeException()
+            };
+
+            OctreeLabeling(startOctant, label, cubeScratch); // ★ int[] 版を呼ぶ
+
+            label++;
+            if (label - 2 >= 2) return false;
+        }
+        return true;
+    }
 
     // .hxx の Octree_labeling をそのまま移植（条件も再帰呼び出しも一致）
     private static void OctreeLabeling(int octant, int label, int[] cube)

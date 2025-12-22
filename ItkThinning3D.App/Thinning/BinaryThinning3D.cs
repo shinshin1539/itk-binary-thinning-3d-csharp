@@ -49,6 +49,7 @@ public static class BinaryThinning3D
         var eulerLut = ItkLee94.CreateEulerLut();
         var candidates = new List<int>(1024);
         var n27 = new byte[27];
+        var cubeScratch = new int[26];
 
         int hw = h * w;
 
@@ -97,7 +98,8 @@ public static class BinaryThinning3D
                     if (numberOfNeighbors == 1) continue;
 
                     if (!ItkLee94.IsEulerInvariant(n27, eulerLut)) continue;
-                    if (!ItkLee94.IsSimplePoint(n27)) continue;
+                    if (!ItkLee94.IsSimplePoint(n27, cubeScratch)) continue;
+
 
                     candidates.Add(idx);
                     if (stats != null) stats.CandidatesAdded++;

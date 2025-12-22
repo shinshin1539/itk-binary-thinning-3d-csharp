@@ -5,3 +5,4 @@ dotnet run --project ItkThinning3D.App -- diff 41 41 41 torus_thin.raw torus_itk
 dotnet run --project ItkThinning3D.App -- thin 101 101 101 torus101.raw torus101_thin.raw --profile
 dotnet run --project ItkThinning3D.App -- thin 151 151 151 torus151.raw torus151_thin.raw --profile
 
+dotnet run -c Release --project ItkThinning3D.App -- thin 151 151 151 torus151.raw torus151_thin.raw --profile
