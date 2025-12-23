@@ -18,13 +18,15 @@ Requires .NET SDK (e.g., .NET 10).
 
 ```bash
 dotnet build -c Release
-
-Usage (Library)
+```
+## Usage
 Input volume is a flat byte[] with index order:
 idx = (z * H + y) * W + x (X is the fastest axis)
 Any non-zero voxel is treated as foreground.
 
+Usage example
+```bash
 using ItkThinning3D; // adjust if your namespace differs
 
-// Example (adjust to your actual API names)
 byte[] thin = BinaryThinning3D.Thin(vol, D, H, W);
+```
