@@ -26,7 +26,7 @@ Any non-zero voxel is treated as foreground.
 
 Usage example
 ```bash
-using ItkThinning3D; // adjust if your namespace differs
+using ItkThinning3D;
 
 byte[] thin = BinaryThinning3D.Thin(vol, D, H, W);
 ```
