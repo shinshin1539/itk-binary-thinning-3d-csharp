@@ -8,7 +8,7 @@ public sealed class ThinningStats
     public long CandidatesAdded;
     public long DeletedAccepted;
     public long DeletedReverted;
-
+    public long SequentialChecks;
     public long MsTotal;
     public long MsCollect;
     public long MsSequential;

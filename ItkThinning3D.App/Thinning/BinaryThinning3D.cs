@@ -117,6 +117,7 @@ public static class BinaryThinning3D
                 foreach (int idx in candidates)
                 {
                     if (vol[idx] == 0) continue;
+                    if (stats != null) stats.SequentialChecks++; 
 
                     int z = idx / hw;
                     int rem = idx - z * hw;

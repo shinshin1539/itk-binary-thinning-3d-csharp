@@ -1,5 +1,5 @@
 using System;
-
+using System.Runtime.CompilerServices;
 namespace ItkThinning3D.App.Thinning;
 
 public static class ItkLee94
@@ -145,13 +145,17 @@ public static class ItkLee94
         return lut;
     }
 
-    // .hxx の isEulerInvariant をそのまま移植（neighbors[]の番号も同じ）
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static bool IsEulerInvariant(byte[] neighbors, int[] lut)
     {
-        int EulerChar = 0;
+        // LUTの範囲（あなたの CreateEulerLut では min=-7, max=+5）
+        const int MAX_LUT = 5;
+        const int MIN_LUT = -7;
+
+        int E = 0;
         int n;
 
-        // Octant SWU
+        // Octant SWU   (24,25,15,16,21,22,12)
         n = 1;
         if (neighbors[24] == 1) n |= 128;
         if (neighbors[25] == 1) n |= 64;
@@ -160,9 +164,10 @@ public static class ItkLee94
         if (neighbors[21] == 1) n |= 8;
         if (neighbors[22] == 1) n |= 4;
         if (neighbors[12] == 1) n |= 2;
-        EulerChar += lut[n];
+        E += lut[n];
+        { int rem = 7; if (E < -MAX_LUT * rem || E > -MIN_LUT * rem) return false; }
 
-        // Octant SEU
+        // Octant SEU   (26,23,17,14,25,22,16)
         n = 1;
         if (neighbors[26] == 1) n |= 128;
         if (neighbors[23] == 1) n |= 64;
@@ -171,20 +176,22 @@ public static class ItkLee94
         if (neighbors[25] == 1) n |= 8;
         if (neighbors[22] == 1) n |= 4;
         if (neighbors[16] == 1) n |= 2;
-        EulerChar += lut[n];
+        E += lut[n];
+        { int rem = 6; if (E < -MAX_LUT * rem || E > -MIN_LUT * rem) return false; }
 
-        // Octant NWU
+        // Octant NWU   (18,21,9,12,19,22,10)
         n = 1;
         if (neighbors[18] == 1) n |= 128;
         if (neighbors[21] == 1) n |= 64;
-        if (neighbors[9] == 1) n |= 32;
+        if (neighbors[9]  == 1) n |= 32;
         if (neighbors[12] == 1) n |= 16;
         if (neighbors[19] == 1) n |= 8;
         if (neighbors[22] == 1) n |= 4;
         if (neighbors[10] == 1) n |= 2;
-        EulerChar += lut[n];
+        E += lut[n];
+        { int rem = 5; if (E < -MAX_LUT * rem || E > -MIN_LUT * rem) return false; }
 
-        // Octant NEU
+        // Octant NEU   (20,23,19,22,11,14,10)
         n = 1;
         if (neighbors[20] == 1) n |= 128;
         if (neighbors[23] == 1) n |= 64;
@@ -193,53 +200,57 @@ public static class ItkLee94
         if (neighbors[11] == 1) n |= 8;
         if (neighbors[14] == 1) n |= 4;
         if (neighbors[10] == 1) n |= 2;
-        EulerChar += lut[n];
+        E += lut[n];
+        { int rem = 4; if (E < -MAX_LUT * rem || E > -MIN_LUT * rem) return false; }
 
-        // Octant SWB
+        // Octant SWB   (6,15,7,16,3,12,4)
         n = 1;
-        if (neighbors[6] == 1) n |= 128;
+        if (neighbors[6]  == 1) n |= 128;
         if (neighbors[15] == 1) n |= 64;
-        if (neighbors[7] == 1) n |= 32;
+        if (neighbors[7]  == 1) n |= 32;
         if (neighbors[16] == 1) n |= 16;
-        if (neighbors[3] == 1) n |= 8;
+        if (neighbors[3]  == 1) n |= 8;
         if (neighbors[12] == 1) n |= 4;
-        if (neighbors[4] == 1) n |= 2;
-        EulerChar += lut[n];
+        if (neighbors[4]  == 1) n |= 2;
+        E += lut[n];
+        { int rem = 3; if (E < -MAX_LUT * rem || E > -MIN_LUT * rem) return false; }
 
-        // Octant SEB
+        // Octant SEB   (8,7,17,16,5,4,14)
         n = 1;
-        if (neighbors[8] == 1) n |= 128;
-        if (neighbors[7] == 1) n |= 64;
+        if (neighbors[8]  == 1) n |= 128;
+        if (neighbors[7]  == 1) n |= 64;
         if (neighbors[17] == 1) n |= 32;
         if (neighbors[16] == 1) n |= 16;
-        if (neighbors[5] == 1) n |= 8;
-        if (neighbors[4] == 1) n |= 4;
+        if (neighbors[5]  == 1) n |= 8;
+        if (neighbors[4]  == 1) n |= 4;
         if (neighbors[14] == 1) n |= 2;
-        EulerChar += lut[n];
+        E += lut[n];
+        { int rem = 2; if (E < -MAX_LUT * rem || E > -MIN_LUT * rem) return false; }
 
-        // Octant NWB
+        // Octant NWB   (0,9,3,12,1,10,4)
         n = 1;
-        if (neighbors[0] == 1) n |= 128;
-        if (neighbors[9] == 1) n |= 64;
-        if (neighbors[3] == 1) n |= 32;
+        if (neighbors[0]  == 1) n |= 128;
+        if (neighbors[9]  == 1) n |= 64;
+        if (neighbors[3]  == 1) n |= 32;
         if (neighbors[12] == 1) n |= 16;
-        if (neighbors[1] == 1) n |= 8;
+        if (neighbors[1]  == 1) n |= 8;
         if (neighbors[10] == 1) n |= 4;
-        if (neighbors[4] == 1) n |= 2;
-        EulerChar += lut[n];
+        if (neighbors[4]  == 1) n |= 2;
+        E += lut[n];
+        { int rem = 1; if (E < -MAX_LUT * rem || E > -MIN_LUT * rem) return false; }
 
-        // Octant NEB
+        // Octant NEB   (2,1,11,10,5,4,14)
         n = 1;
-        if (neighbors[2] == 1) n |= 128;
-        if (neighbors[1] == 1) n |= 64;
+        if (neighbors[2]  == 1) n |= 128;
+        if (neighbors[1]  == 1) n |= 64;
         if (neighbors[11] == 1) n |= 32;
         if (neighbors[10] == 1) n |= 16;
-        if (neighbors[5] == 1) n |= 8;
-        if (neighbors[4] == 1) n |= 4;
+        if (neighbors[5]  == 1) n |= 8;
+        if (neighbors[4]  == 1) n |= 4;
         if (neighbors[14] == 1) n |= 2;
-        EulerChar += lut[n];
+        E += lut[n];
 
-        return EulerChar == 0;
+        return E == 0;
     }
 
     // .hxx の isSimplePoint をそのまま移植（switchで開始octant決定）

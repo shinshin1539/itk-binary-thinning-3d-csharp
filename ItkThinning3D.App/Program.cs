@@ -112,6 +112,7 @@ if (cmd == "thin")
         Console.WriteLine($"candidates added: {st.CandidatesAdded}");
         Console.WriteLine($"deleted accepted: {st.DeletedAccepted}");
         Console.WriteLine($"deleted reverted: {st.DeletedReverted}");
+        Console.WriteLine($"sequential checks: {st.SequentialChecks}");
     }
     return;
 }
