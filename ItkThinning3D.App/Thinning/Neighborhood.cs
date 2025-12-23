@@ -19,30 +19,82 @@ public static class Neighborhood
     public static bool InBounds(int z, int y, int x, int d, int h, int w)
         => (uint)z < (uint)d && (uint)y < (uint)h && (uint)x < (uint)w;
 
-    // 27近傍を 0/1 の byte[27] で返す（中心も含む）
+    // byte[27] で返す（中心も含む）
     // 境界外は 0 扱い
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static void Get27(byte[] vol, int d, int h, int w, int z, int y, int x, byte[] n27)
     {
         if (vol is null) throw new ArgumentNullException(nameof(vol));
         if (n27 is null) throw new ArgumentNullException(nameof(n27));
         if (n27.Length != 27) throw new ArgumentException("n27 must be length 27");
 
-        for (int dz = -1; dz <= 1; dz++)
-        for (int dy = -1; dy <= 1; dy++)
-        for (int dx = -1; dx <= 1; dx++)
-        {
-            int zi = z + dz, yi = y + dy, xi = x + dx;
-            int k = N27Index(dx, dy, dz);
+        // 念のため：呼び出し側は常に有効座標のはず
+        // （無効なら従来同様に例外で落ちるほうがデバッグしやすい）
+        if ((uint)z >= (uint)d || (uint)y >= (uint)h || (uint)x >= (uint)w)
+            throw new ArgumentOutOfRangeException("z/y/x out of bounds");
 
-            byte v = 0;
-            if (InBounds(zi, yi, xi, d, h, w))
+        // interior は既存の unsafe 高速版へ（呼び出し側で分岐していても、ここは保険＆高速）
+        if ((uint)(x - 1) < (uint)(w - 2) && (uint)(y - 1) < (uint)(h - 2) && (uint)(z - 1) < (uint)(d - 2))
+        {
+            Get27FastInterior(vol, d, h, w, z, y, x, n27);
+            return;
+        }
+
+        Get27BoundaryUnsafe(vol, d, h, w, z, y, x, n27);
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static unsafe void Get27BoundaryUnsafe(byte[] vol, int d, int h, int w, int z, int y, int x, byte[] n27)
+    {
+        int hw = h * w;
+        int baseIdx = (z * h + y) * w + x;
+
+        bool hasXm = x > 0;
+        bool hasXp = x + 1 < w;
+
+        fixed (byte* pv = vol)
+        fixed (byte* pn = n27)
+        {
+            int k = 0;
+
+            // dz = -1,0,1 の3平面
+            for (int dz = -1; dz <= 1; dz++)
             {
-                v = vol[Idx(zi, yi, xi, h, w)];
-                v = (byte)(v != 0 ? 1 : 0); // 念のため 0/1 に正規化
+                int zz = z + dz;
+                if ((uint)zz >= (uint)d)
+                {
+                    // 9個ゼロ
+                    pn[k++] = 0; pn[k++] = 0; pn[k++] = 0;
+                    pn[k++] = 0; pn[k++] = 0; pn[k++] = 0;
+                    pn[k++] = 0; pn[k++] = 0; pn[k++] = 0;
+                    continue;
+                }
+
+                int zBase = baseIdx + dz * hw;
+
+                // dy = -1,0,1 の3行
+                for (int dy = -1; dy <= 1; dy++)
+                {
+                    int yy = y + dy;
+                    if ((uint)yy >= (uint)h)
+                    {
+                        pn[k++] = 0; pn[k++] = 0; pn[k++] = 0;
+                        continue;
+                    }
+
+                    int row = zBase + dy * w; // (zz,yy,x)
+
+                    // dx = -1
+                    pn[k++] = hasXm ? (byte)(pv[row - 1] != 0 ? 1 : 0) : (byte)0;
+                    // dx = 0（中心列は必ずin-bounds）
+                    pn[k++] = (byte)(pv[row] != 0 ? 1 : 0);
+                    // dx = +1
+                    pn[k++] = hasXp ? (byte)(pv[row + 1] != 0 ? 1 : 0) : (byte)0;
+                }
             }
-            n27[k] = v;
         }
     }
+
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static unsafe void Get27FastInterior(byte[] vol, int d, int h, int w, int z, int y, int x, byte[] n27)
     {
