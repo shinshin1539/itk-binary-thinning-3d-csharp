@@ -1,3 +1,4 @@
+using System.Runtime.CompilerServices;
 namespace ItkThinning3D.App.Thinning;
 
 public static class Neighborhood
@@ -42,28 +43,32 @@ public static class Neighborhood
             n27[k] = v;
         }
     }
-    public static void Get27FastInterior(byte[] vol, int d, int h, int w, int z, int y, int x, byte[] n27)
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static unsafe void Get27FastInterior(byte[] vol, int d, int h, int w, int z, int y, int x, byte[] n27)
     {
         // 前提：1 <= x <= w-2, 1 <= y <= h-2, 1 <= z <= d-2
+        // vol と n27 は null でない / n27.Length == 27 は呼び出し側で保証されている前提（ホットパス最適化）
+
         int hw = h * w;
         int baseIdx = (z * h + y) * w + x;
 
-        // z-1 plane
-        int p = baseIdx - hw;
-        n27[0]  = vol[p - w - 1]; n27[1]  = vol[p - w]; n27[2]  = vol[p - w + 1];
-        n27[3]  = vol[p - 1];     n27[4]  = vol[p];     n27[5]  = vol[p + 1];
-        n27[6]  = vol[p + w - 1]; n27[7]  = vol[p + w]; n27[8]  = vol[p + w + 1];
+        fixed (byte* pv = vol)
+        fixed (byte* pn = n27)
+        {
+            int p = baseIdx - hw; // z-1
+            pn[0]  = pv[p - w - 1]; pn[1]  = pv[p - w]; pn[2]  = pv[p - w + 1];
+            pn[3]  = pv[p - 1];     pn[4]  = pv[p];     pn[5]  = pv[p + 1];
+            pn[6]  = pv[p + w - 1]; pn[7]  = pv[p + w]; pn[8]  = pv[p + w + 1];
 
-        // z plane
-        p = baseIdx;
-        n27[9]  = vol[p - w - 1]; n27[10] = vol[p - w]; n27[11] = vol[p - w + 1];
-        n27[12] = vol[p - 1];     n27[13] = vol[p];     n27[14] = vol[p + 1];
-        n27[15] = vol[p + w - 1]; n27[16] = vol[p + w]; n27[17] = vol[p + w + 1];
+            p = baseIdx; // z
+            pn[9]  = pv[p - w - 1]; pn[10] = pv[p - w]; pn[11] = pv[p - w + 1];
+            pn[12] = pv[p - 1];     pn[13] = pv[p];     pn[14] = pv[p + 1];
+            pn[15] = pv[p + w - 1]; pn[16] = pv[p + w]; pn[17] = pv[p + w + 1];
 
-        // z+1 plane
-        p = baseIdx + hw;
-        n27[18] = vol[p - w - 1]; n27[19] = vol[p - w]; n27[20] = vol[p - w + 1];
-        n27[21] = vol[p - 1];     n27[22] = vol[p];     n27[23] = vol[p + 1];
-        n27[24] = vol[p + w - 1]; n27[25] = vol[p + w]; n27[26] = vol[p + w + 1];
+            p = baseIdx + hw; // z+1
+            pn[18] = pv[p - w - 1]; pn[19] = pv[p - w]; pn[20] = pv[p - w + 1];
+            pn[21] = pv[p - 1];     pn[22] = pv[p];     pn[23] = pv[p + 1];
+            pn[24] = pv[p + w - 1]; pn[25] = pv[p + w]; pn[26] = pv[p + w + 1];
+        }
     }
 }
