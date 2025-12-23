@@ -6,6 +6,12 @@ namespace ItkThinning3D.App.Thinning;
 
 public static class BinaryThinning3D
 {
+    readonly struct Cand
+    {
+        public readonly int Idx;
+        public readonly int Z, Y, X;
+        public Cand(int idx, int z, int y, int x) { Idx = idx; Z = z; Y = y; X = x; }
+    }
     private static bool IsBorderPointLiteIdx(byte[] vol, int d, int h, int w, int idx, int z, int y, int x, ThinningDir dir)
     {
         int hw = h * w;
@@ -47,7 +53,7 @@ public static class BinaryThinning3D
         for (int i = 0; i < vol.Length; i++)
             if (vol[i] != 0) foreground.Add(i);
         var eulerLut = ItkLee94.CreateEulerLut();
-        var candidates = new List<int>(1024);
+        var candidates = new List<Cand>();
         var n27 = new byte[27];
         var cubeScratch = new int[26];
 
@@ -101,7 +107,7 @@ public static class BinaryThinning3D
                     if (!ItkLee94.IsSimplePoint(n27, cubeScratch)) continue;
 
 
-                    candidates.Add(idx);
+                    candidates.Add(new Cand(idx, z, y, x));
                     if (stats != null) stats.CandidatesAdded++;
                 }
 
@@ -114,15 +120,13 @@ public static class BinaryThinning3D
 
                 bool noChange = true;
 
-                foreach (int idx in candidates)
+                foreach (var c in candidates)
                 {
+                    int idx = c.Idx;
                     if (vol[idx] == 0) continue;
                     if (stats != null) stats.SequentialChecks++; 
 
-                    int z = idx / hw;
-                    int rem = idx - z * hw;
-                    int y = rem / w;
-                    int x = rem - y * w;
+                    int z = c.Z, y = c.Y, x = c.X;
 
                     vol[idx] = 0;
 

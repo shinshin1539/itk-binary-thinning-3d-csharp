@@ -4,6 +4,10 @@ namespace ItkThinning3D.App.Thinning;
 
 public static class ItkLee94
 {
+    static readonly byte[] StartOctantLut = new byte[26]
+    {
+        1,1,2,1,1,2,3,3,4,1,1,2,1,2,3,3,4,5,5,6,5,5,6,7,7,8
+    };
     // .hxx の fillEulerLUT をそのまま移植
     public static int[] CreateEulerLut()
     {
@@ -267,18 +271,7 @@ public static class ItkLee94
         {
             if (cube[i] != 1) continue;
 
-            int startOctant = i switch
-            {
-                0 or 1 or 3 or 4 or 9 or 10 or 12 => 1,
-                2 or 5 or 11 or 13 => 2,
-                6 or 7 or 14 or 15 => 3,
-                8 or 16 => 4,
-                17 or 18 or 20 or 21 => 5,
-                19 or 22 => 6,
-                23 or 24 => 7,
-                25 => 8,
-                _ => throw new ArgumentOutOfRangeException()
-            };
+            int startOctant = StartOctantLut[i];
 
             OctreeLabeling(startOctant, label, cube);
 
@@ -322,231 +315,193 @@ public static class ItkLee94
     }
 
     // .hxx の Octree_labeling をそのまま移植（条件も再帰呼び出しも一致）
-    private static void OctreeLabeling(int octant, int label, int[] cube)
+    static void OctreeLabeling(int octant, int label, int[] cube)
     {
-        if (octant == 1)
+        // 再帰 → 明示スタック（同一処理）
+        Span<int> stack = stackalloc int[256];
+        int sp = 0;
+        stack[sp++] = octant;
+
+        while (sp > 0)
         {
-            if (cube[0] == 1) cube[0] = label;
-            if (cube[1] == 1) { cube[1] = label; OctreeLabeling(2, label, cube); }
-            if (cube[3] == 1) { cube[3] = label; OctreeLabeling(3, label, cube); }
-            if (cube[4] == 1)
+            int o = stack[--sp];
+
+            if (o == 1)
             {
-                cube[4] = label;
-                OctreeLabeling(2, label, cube);
-                OctreeLabeling(3, label, cube);
-                OctreeLabeling(4, label, cube);
+                if (cube[0] == 1) cube[0] = label;
+                if (cube[1] == 1) { cube[1] = label; stack[sp++] = 2; }
+                if (cube[3] == 1) { cube[3] = label; stack[sp++] = 3; }
+                if (cube[4] == 1)
+                {
+                    cube[4] = label;
+                    stack[sp++] = 2; stack[sp++] = 3; stack[sp++] = 4;
+                }
+                if (cube[9] == 1) { cube[9] = label; stack[sp++] = 5; }
+                if (cube[10] == 1)
+                {
+                    cube[10] = label;
+                    stack[sp++] = 2; stack[sp++] = 5; stack[sp++] = 6;
+                }
+                if (cube[12] == 1)
+                {
+                    cube[12] = label;
+                    stack[sp++] = 3; stack[sp++] = 5; stack[sp++] = 7;
+                }
             }
-            if (cube[9] == 1) { cube[9] = label; OctreeLabeling(5, label, cube); }
-            if (cube[10] == 1)
+            else if (o == 2)
             {
-                cube[10] = label;
-                OctreeLabeling(2, label, cube);
-                OctreeLabeling(5, label, cube);
-                OctreeLabeling(6, label, cube);
+                if (cube[1] == 1) { cube[1] = label; stack[sp++] = 1; }
+                if (cube[4] == 1)
+                {
+                    cube[4] = label;
+                    stack[sp++] = 1; stack[sp++] = 3; stack[sp++] = 4;
+                }
+                if (cube[10] == 1)
+                {
+                    cube[10] = label;
+                    stack[sp++] = 1; stack[sp++] = 5; stack[sp++] = 6;
+                }
+                if (cube[2] == 1) cube[2] = label;
+                if (cube[5] == 1) { cube[5] = label; stack[sp++] = 4; }
+                if (cube[11] == 1) { cube[11] = label; stack[sp++] = 6; }
+                if (cube[13] == 1)
+                {
+                    cube[13] = label;
+                    stack[sp++] = 4; stack[sp++] = 6; stack[sp++] = 8;
+                }
             }
-            if (cube[12] == 1)
+            else if (o == 3)
             {
-                cube[12] = label;
-                OctreeLabeling(3, label, cube);
-                OctreeLabeling(5, label, cube);
-                OctreeLabeling(7, label, cube);
+                if (cube[3] == 1) { cube[3] = label; stack[sp++] = 1; }
+                if (cube[4] == 1)
+                {
+                    cube[4] = label;
+                    stack[sp++] = 1; stack[sp++] = 2; stack[sp++] = 4;
+                }
+                if (cube[12] == 1)
+                {
+                    cube[12] = label;
+                    stack[sp++] = 1; stack[sp++] = 5; stack[sp++] = 7;
+                }
+                if (cube[6] == 1) cube[6] = label;
+                if (cube[7] == 1) { cube[7] = label; stack[sp++] = 4; }
+                if (cube[14] == 1) { cube[14] = label; stack[sp++] = 7; }
+                if (cube[15] == 1)
+                {
+                    cube[15] = label;
+                    stack[sp++] = 4; stack[sp++] = 7; stack[sp++] = 8;
+                }
             }
-        }
-        if (octant == 2)
-        {
-            if (cube[1] == 1) { cube[1] = label; OctreeLabeling(1, label, cube); }
-            if (cube[4] == 1)
+            else if (o == 4)
             {
-                cube[4] = label;
-                OctreeLabeling(1, label, cube);
-                OctreeLabeling(3, label, cube);
-                OctreeLabeling(4, label, cube);
+                if (cube[4] == 1)
+                {
+                    cube[4] = label;
+                    stack[sp++] = 1; stack[sp++] = 2; stack[sp++] = 3;
+                }
+                if (cube[5] == 1) { cube[5] = label; stack[sp++] = 2; }
+                if (cube[13] == 1)
+                {
+                    cube[13] = label;
+                    stack[sp++] = 2; stack[sp++] = 6; stack[sp++] = 8;
+                }
+                if (cube[7] == 1) { cube[7] = label; stack[sp++] = 3; }
+                if (cube[15] == 1)
+                {
+                    cube[15] = label;
+                    stack[sp++] = 3; stack[sp++] = 7; stack[sp++] = 8;
+                }
+                if (cube[8] == 1) cube[8] = label;
+                if (cube[16] == 1) { cube[16] = label; stack[sp++] = 8; }
             }
-            if (cube[10] == 1)
+            else if (o == 5)
             {
-                cube[10] = label;
-                OctreeLabeling(1, label, cube);
-                OctreeLabeling(5, label, cube);
-                OctreeLabeling(6, label, cube);
+                if (cube[9] == 1) { cube[9] = label; stack[sp++] = 1; }
+                if (cube[10] == 1)
+                {
+                    cube[10] = label;
+                    stack[sp++] = 1; stack[sp++] = 2; stack[sp++] = 6;
+                }
+                if (cube[12] == 1)
+                {
+                    cube[12] = label;
+                    stack[sp++] = 1; stack[sp++] = 3; stack[sp++] = 7;
+                }
+                if (cube[17] == 1) cube[17] = label;
+                if (cube[18] == 1) { cube[18] = label; stack[sp++] = 6; }
+                if (cube[20] == 1) { cube[20] = label; stack[sp++] = 7; }
+                if (cube[21] == 1)
+                {
+                    cube[21] = label;
+                    stack[sp++] = 6; stack[sp++] = 7; stack[sp++] = 8;
+                }
             }
-            if (cube[2] == 1) cube[2] = label;
-            if (cube[5] == 1) { cube[5] = label; OctreeLabeling(4, label, cube); }
-            if (cube[11] == 1) { cube[11] = label; OctreeLabeling(6, label, cube); }
-            if (cube[13] == 1)
+            else if (o == 6)
             {
-                cube[13] = label;
-                OctreeLabeling(4, label, cube);
-                OctreeLabeling(6, label, cube);
-                OctreeLabeling(8, label, cube);
+                if (cube[10] == 1)
+                {
+                    cube[10] = label;
+                    stack[sp++] = 1; stack[sp++] = 2; stack[sp++] = 5;
+                }
+                if (cube[11] == 1) { cube[11] = label; stack[sp++] = 2; }
+                if (cube[13] == 1)
+                {
+                    cube[13] = label;
+                    stack[sp++] = 2; stack[sp++] = 4; stack[sp++] = 8;
+                }
+                if (cube[18] == 1) { cube[18] = label; stack[sp++] = 5; }
+                if (cube[21] == 1)
+                {
+                    cube[21] = label;
+                    stack[sp++] = 5; stack[sp++] = 7; stack[sp++] = 8;
+                }
+                if (cube[19] == 1) cube[19] = label;
+                if (cube[22] == 1) { cube[22] = label; stack[sp++] = 8; }
             }
-        }
-        if (octant == 3)
-        {
-            if (cube[3] == 1) { cube[3] = label; OctreeLabeling(1, label, cube); }
-            if (cube[4] == 1)
+            else if (o == 7)
             {
-                cube[4] = label;
-                OctreeLabeling(1, label, cube);
-                OctreeLabeling(2, label, cube);
-                OctreeLabeling(4, label, cube);
+                if (cube[12] == 1)
+                {
+                    cube[12] = label;
+                    stack[sp++] = 1; stack[sp++] = 3; stack[sp++] = 5;
+                }
+                if (cube[14] == 1) { cube[14] = label; stack[sp++] = 3; }
+                if (cube[15] == 1)
+                {
+                    cube[15] = label;
+                    stack[sp++] = 3; stack[sp++] = 4; stack[sp++] = 8;
+                }
+                if (cube[20] == 1) { cube[20] = label; stack[sp++] = 5; }
+                if (cube[21] == 1)
+                {
+                    cube[21] = label;
+                    stack[sp++] = 5; stack[sp++] = 6; stack[sp++] = 8;
+                }
+                if (cube[23] == 1) cube[23] = label;
+                if (cube[24] == 1) { cube[24] = label; stack[sp++] = 8; }
             }
-            if (cube[12] == 1)
+            else if (o == 8)
             {
-                cube[12] = label;
-                OctreeLabeling(1, label, cube);
-                OctreeLabeling(5, label, cube);
-                OctreeLabeling(7, label, cube);
+                if (cube[13] == 1)
+                {
+                    cube[13] = label;
+                    stack[sp++] = 2; stack[sp++] = 4; stack[sp++] = 6;
+                }
+                if (cube[15] == 1)
+                {
+                    cube[15] = label;
+                    stack[sp++] = 3; stack[sp++] = 4; stack[sp++] = 7;
+                }
+                if (cube[16] == 1) { cube[16] = label; stack[sp++] = 4; }
+                if (cube[21] == 1)
+                {
+                    cube[21] = label;
+                    stack[sp++] = 5; stack[sp++] = 6; stack[sp++] = 7;
+                }
+                if (cube[22] == 1) { cube[22] = label; stack[sp++] = 6; }
+                if (cube[24] == 1) { cube[24] = label; stack[sp++] = 7; }
+                if (cube[25] == 1) cube[25] = label;
             }
-            if (cube[6] == 1) cube[6] = label;
-            if (cube[7] == 1) { cube[7] = label; OctreeLabeling(4, label, cube); }
-            if (cube[14] == 1) { cube[14] = label; OctreeLabeling(7, label, cube); }
-            if (cube[15] == 1)
-            {
-                cube[15] = label;
-                OctreeLabeling(4, label, cube);
-                OctreeLabeling(7, label, cube);
-                OctreeLabeling(8, label, cube);
-            }
-        }
-        if (octant == 4)
-        {
-            if (cube[4] == 1)
-            {
-                cube[4] = label;
-                OctreeLabeling(1, label, cube);
-                OctreeLabeling(2, label, cube);
-                OctreeLabeling(3, label, cube);
-            }
-            if (cube[5] == 1) { cube[5] = label; OctreeLabeling(2, label, cube); }
-            if (cube[13] == 1)
-            {
-                cube[13] = label;
-                OctreeLabeling(2, label, cube);
-                OctreeLabeling(6, label, cube);
-                OctreeLabeling(8, label, cube);
-            }
-            if (cube[7] == 1) { cube[7] = label; OctreeLabeling(3, label, cube); }
-            if (cube[15] == 1)
-            {
-                cube[15] = label;
-                OctreeLabeling(3, label, cube);
-                OctreeLabeling(7, label, cube);
-                OctreeLabeling(8, label, cube);
-            }
-            if (cube[8] == 1) cube[8] = label;
-            if (cube[16] == 1) { cube[16] = label; OctreeLabeling(8, label, cube); }
-        }
-        if (octant == 5)
-        {
-            if (cube[9] == 1) { cube[9] = label; OctreeLabeling(1, label, cube); }
-            if (cube[10] == 1)
-            {
-                cube[10] = label;
-                OctreeLabeling(1, label, cube);
-                OctreeLabeling(2, label, cube);
-                OctreeLabeling(6, label, cube);
-            }
-            if (cube[12] == 1)
-            {
-                cube[12] = label;
-                OctreeLabeling(1, label, cube);
-                OctreeLabeling(3, label, cube);
-                OctreeLabeling(7, label, cube);
-            }
-            if (cube[17] == 1) cube[17] = label;
-            if (cube[18] == 1) { cube[18] = label; OctreeLabeling(6, label, cube); }
-            if (cube[20] == 1) { cube[20] = label; OctreeLabeling(7, label, cube); }
-            if (cube[21] == 1)
-            {
-                cube[21] = label;
-                OctreeLabeling(6, label, cube);
-                OctreeLabeling(7, label, cube);
-                OctreeLabeling(8, label, cube);
-            }
-        }
-        if (octant == 6)
-        {
-            if (cube[10] == 1)
-            {
-                cube[10] = label;
-                OctreeLabeling(1, label, cube);
-                OctreeLabeling(2, label, cube);
-                OctreeLabeling(5, label, cube);
-            }
-            if (cube[11] == 1) { cube[11] = label; OctreeLabeling(2, label, cube); }
-            if (cube[13] == 1)
-            {
-                cube[13] = label;
-                OctreeLabeling(2, label, cube);
-                OctreeLabeling(4, label, cube);
-                OctreeLabeling(8, label, cube);
-            }
-            if (cube[18] == 1) { cube[18] = label; OctreeLabeling(5, label, cube); }
-            if (cube[21] == 1)
-            {
-                cube[21] = label;
-                OctreeLabeling(5, label, cube);
-                OctreeLabeling(7, label, cube);
-                OctreeLabeling(8, label, cube);
-            }
-            if (cube[19] == 1) cube[19] = label;
-            if (cube[22] == 1) { cube[22] = label; OctreeLabeling(8, label, cube); }
-        }
-        if (octant == 7)
-        {
-            if (cube[12] == 1)
-            {
-                cube[12] = label;
-                OctreeLabeling(1, label, cube);
-                OctreeLabeling(3, label, cube);
-                OctreeLabeling(5, label, cube);
-            }
-            if (cube[14] == 1) { cube[14] = label; OctreeLabeling(3, label, cube); }
-            if (cube[15] == 1)
-            {
-                cube[15] = label;
-                OctreeLabeling(3, label, cube);
-                OctreeLabeling(4, label, cube);
-                OctreeLabeling(8, label, cube);
-            }
-            if (cube[20] == 1) { cube[20] = label; OctreeLabeling(5, label, cube); }
-            if (cube[21] == 1)
-            {
-                cube[21] = label;
-                OctreeLabeling(5, label, cube);
-                OctreeLabeling(6, label, cube);
-                OctreeLabeling(8, label, cube);
-            }
-            if (cube[23] == 1) cube[23] = label;
-            if (cube[24] == 1) { cube[24] = label; OctreeLabeling(8, label, cube); }
-        }
-        if (octant == 8)
-        {
-            if (cube[13] == 1)
-            {
-                cube[13] = label;
-                OctreeLabeling(2, label, cube);
-                OctreeLabeling(4, label, cube);
-                OctreeLabeling(6, label, cube);
-            }
-            if (cube[15] == 1)
-            {
-                cube[15] = label;
-                OctreeLabeling(3, label, cube);
-                OctreeLabeling(4, label, cube);
-                OctreeLabeling(7, label, cube);
-            }
-            if (cube[16] == 1) { cube[16] = label; OctreeLabeling(4, label, cube); }
-            if (cube[21] == 1)
-            {
-                cube[21] = label;
-                OctreeLabeling(5, label, cube);
-                OctreeLabeling(6, label, cube);
-                OctreeLabeling(7, label, cube);
-            }
-            if (cube[22] == 1) { cube[22] = label; OctreeLabeling(6, label, cube); }
-            if (cube[24] == 1) { cube[24] = label; OctreeLabeling(7, label, cube); }
-            if (cube[25] == 1) cube[25] = label;
         }
     }
 }
